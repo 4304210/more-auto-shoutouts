@@ -1,37 +1,336 @@
-[package]
-name = "more-auto-shoutouts"
-version = "0.2.3"
-edition = "2021"
+# Mod主仓库
+# https://github.com/eigeen/more-auto-shoutouts
+#
+# Q&A文档
+# https://git.eigeen.com/eigeen/more-auto-shoutouts-docs
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+# 全局触发器冷却时间
+# 冷却时间内，同一个触发器的消息将会被忽略
+# 默认1秒用于防抖
+#
+# 触发器支持单独设置冷却时间覆盖全局设置，具体查看触发器设置
+trigger_cd = 1
 
-[lib]
-crate-type = ["cdylib"]
+# ========== 太刀白刃 ==========
+[[trigger]]
+# 当有多个事件时，事件调用模式
+# sequential_all: 顺序执行全部
+# sequential_one: 顺序执行下一个
+# random: 随机选取执行
+action_mode = "sequential_all"
+# 触发冷却时间
+# 该项设置后，会覆盖全局设置`trigger_cd`
+cooldown = 1
+# 可选设置，主要是方便调试和统计，不写也可以
+name = "太刀白刃"
 
-[profile.release]
-panic = "abort"
+    # 触发条件设置（有且仅有一个）
+    [trigger.trigger_on.longsword_level_changed]
+    new = 1
+    old = 0
 
-[dependencies]
-serde = { version = "1.0", features = ["derive"] }
-toml = "0.8"
-mhw_toolkit = { path = "../mhw-toolkit" }
-winapi = { version = "0.3", features = ["minwindef", "winnt"] }
-once_cell = "1.20"
-tokio = { version = "1.40", features = ["full"] }
-snafu = "0.8"
-log = { version = "0.4", features = ["serde"] }
-rand = "0.8"
-serde_json = "1.0"
-chrono = { version = "0.4", features = ["serde"] }
-minhook-sys = { version = "0.1", optional = true }
-rodio = { version = "0.19", optional = true }
-async-trait = "0.1"
-futures = "0.3"
-futures-util = "0.3"
+    # 触发检查条件设置
+    # 多个条件同时满足才会执行
+    # [[trigger.check]]
+    # weapon_type.value = 3
+
+    # 触发事件设置
+    [[trigger.action]]
+    cmd = "SendChatMessage"
+    # 彩色文本为游戏内支持，彩色文本参考Q&A文档
+    param = "*白刃"
+
+# ========== 太刀黄刃 ==========
+[[trigger]]
+action_mode = "sequential_all"
+name = "太刀黄刃"
+
+    [trigger.trigger_on.longsword_level_changed]
+    new = 2
+    old = 1
+
+    [[trigger.action]]
+    cmd = "SendChatMessage"
+    param = "黄刃"
 
 
-[features]
-default = ["use_logger", "hooks"]
-use_logger = ["mhw_toolkit/logger"]
-hooks = ["minhook-sys"]
-use_audio = ["rodio"]
+# ========== 太刀红刃 ==========
+[[trigger]]
+action_mode = "sequential_all"
+name = "太刀红刃"
+
+    [trigger.trigger_on.longsword_level_changed]
+    new = 3
+    old = 2
+
+    [[trigger.action]]
+    cmd = "SendChatMessage"
+    param = "*红刃"
+
+
+# ========== 太刀进入任务 ==========
+[[trigger]]
+action_mode = "sequential_all"
+name = "太刀进入任务"
+
+    [trigger.trigger_on.quest_state]
+    value = 2
+
+    [[trigger.check]]
+    weapon_type.value = 3
+
+    [[trigger.action]]
+    cmd = "SendChatMessage"
+    param = "*太刀加入游戏"
+
+
+# ========== 太刀登龙成功 ==========
+[[trigger]]
+action_mode = "sequential_all"
+name = "太刀登龙成功"
+
+    [trigger.trigger_on.fsm]
+    new = { target = 3, id = 92 }
+
+    [[trigger.check]]
+    weapon_type.value = 3
+
+    # 伤害收集&检查条件
+    # 当你在Action中需要使用{{damage}}时，
+    # 即使不需要判断伤害，也必须要使用trigger.check.damage
+    # 否则上下文获取不到伤害值，无法正常打印伤害
+    [[trigger.check]]
+    [trigger.check.damage]
+    damage = { gt = 0 }
+    fsm = { target = 3, id = 92 }
+    timeout = 1000
+
+    [[trigger.action]]
+    cmd = "SendChatMessage"
+    param = "太刀侠登龙造成伤害{{damage}}，全体武器行注目礼"
+
+
+# ========== 太刀登龙失败 ==========
+[[trigger]]
+action_mode = "sequential_all"
+name = "太刀登龙失败"
+
+    [trigger.trigger_on.fsm]
+    new = { target = 3, id = 92 }
+
+    [[trigger.check]]
+    weapon_type.value = 3
+
+    [[trigger.check]]
+    [trigger.check.damage]
+    damage = { le = 0 }
+    fsm = { target = 3, id = 92 }
+    timeout = 1000
+
+    [[trigger.action]]
+    cmd = "SendChatMessage"
+    param = "悲报，太刀侠空登了，全体武器纳刀三秒致敬"
+
+
+# ========== 太刀居合动作 ==========
+[[trigger]]
+action_mode = "random"
+name = "太刀居合动作"
+
+    [trigger.trigger_on.fsm]
+    new = { target = 3, id = 102 }
+
+    [[trigger.check]]
+    weapon_type.value = 3
+
+    [[trigger.action]]
+    cmd = "SendChatMessage"
+    param = "*居合随机1"
+    [[trigger.action]]
+    cmd = "SendChatMessage"
+    param = "*居合随机2"
+
+
+# ========== 大剑强击真三蓄 ==========
+[[trigger]]
+action_mode = "sequential_all"
+name = "大剑强击真三蓄"
+
+    [trigger.trigger_on.fsm]
+    new = { target = 3, id = 137 }
+
+    [[trigger.check]]
+    weapon_type.value = 0
+
+    [[trigger.check]]
+    [trigger.check.damage]
+    damage = { gt = 0 }
+    fsm = { target = 3, id = 137 }
+    timeout = 1000
+
+    [[trigger.action]]
+    cmd = "SendChatMessage"
+    param = "*强击真三蓄！造成了{{damage}}伤害"
+
+
+# ========== 虫棍进入任务 ==========
+[[trigger]]
+action_mode = "sequential_all"
+name = "虫棍进入任务"
+
+    [trigger.trigger_on.quest_state]
+    value = 2
+
+    [[trigger.check]]
+    weapon_type.value = 10
+
+    [[trigger.action]]
+    cmd = "SendChatMessage"
+    param = "*虫棍1"
+
+
+# ========== 虫棍红灯 ==========
+[[trigger]]
+action_mode = "random"
+name = "虫棍红灯"
+
+    [trigger.trigger_on.insect_glaive_light]
+    red = { new = { gt = 0 }, old = { le = 0 } }
+
+    [[trigger.action]]
+    cmd = "SendChatMessage"
+    param = "*红灯"
+
+
+# ========== 虫棍白灯 ==========
+[[trigger]]
+action_mode = "random"
+name = "虫棍白灯"
+
+    [trigger.trigger_on.insect_glaive_light]
+    white = { new = { gt = 0 }, old = { le = 0 } }
+
+    [[trigger.action]]
+    cmd = "SendChatMessage"
+    param = "*白灯"
+
+
+# ========== 虫棍黄灯 ==========
+[[trigger]]
+action_mode = "random"
+name = "虫棍黄灯"
+
+    [trigger.trigger_on.insect_glaive_light]
+    yellow = { new = { gt = 0 }, old = { le = 0 } }
+
+    [[trigger.action]]
+    cmd = "SendChatMessage"
+    param = "*黄灯"
+
+
+# ========== 虫棍三灯 ==========
+[[trigger]]
+action_mode = "random"
+name = "虫棍三灯"
+
+    [trigger.trigger_on.insect_glaive_light]
+    red = { new = { gt = 0 } }
+    white = { new = { gt = 0 } }
+    yellow = { new = { gt = 0 } }
+
+    [[trigger.action]]
+    cmd = "SendChatMessage"
+    param = "*三灯"
+
+
+# ========== 猎虫强化动作 ==========
+[[trigger]]
+action_mode = "random"
+name = "猎虫强化动作"
+
+    [trigger.trigger_on.fsm]
+    new = { target = 3, id = 133 }
+
+    [[trigger.check]]
+    weapon_type.value = 10
+
+    [[trigger.action]]
+    cmd = "SendChatMessage"
+    param = "*猎虫强化"
+
+
+# ========== 盾斧瓶子充满 ==========
+[[trigger]]
+action_mode = "random"
+name = "盾斧瓶子充满"
+
+    [trigger.trigger_on.charge_blade]
+    phials = { new = "full" }
+
+    [[trigger.action]]
+    cmd = "SendChatMessage"
+    param = "*瓶子充满"
+
+
+# ========== 盾斧电锯启用 ==========
+[[trigger]]
+action_mode = "random"
+name = "盾斧电锯启用"
+
+    [trigger.trigger_on.charge_blade]
+    power_axe_timer = { new = "enabled" }
+
+    [[trigger.action]]
+    cmd = "SendChatMessage"
+    param = "*开电锯"
+
+
+# ========== 盾斧红盾启用 ==========
+[[trigger]]
+action_mode = "random"
+name = "盾斧红盾启用"
+
+    [trigger.trigger_on.charge_blade]
+    shield_charge_timer = { new = { gt = 0 }, old = { le = 0 } }
+
+    [[trigger.action]]
+    cmd = "SendChatMessage"
+    param = "*开红盾"
+
+
+# ========== 使用道具 ==========
+[[trigger]]
+action_mode = "sequential_all"
+name = "使用怪力药丸"
+
+    [trigger.trigger_on.use_item]
+    item_id = 23
+
+    [[trigger.action]]
+    cmd = "SendChatMessage"
+    param = "<STYL MOJI_RED_DEFAULT><SIZE 35>怪力药丸</SIZE></STYL> 攻击+20"
+
+
+[[trigger]]
+action_mode = "sequential_all"
+name = "使用忍耐药丸"
+
+    [trigger.trigger_on.use_item]
+    item_id = 27
+
+    [[trigger.action]]
+    cmd = "SendChatMessage"
+    param = "<STYL MOJI_YELLOW_DEFAULT><SIZE 35>忍耐药丸</SIZE></STYL> 防御+30%+耐冲3+风压无效"
+
+
+# ========== 使用衣装 ==========
+[[trigger]]
+action_mode = "sequential_all"
+name = "使用回避衣装"
+
+    [trigger.trigger_on.use_item]
+    item_id = 131
+
+    [[trigger.action]]
+    cmd = "SendChatMessage"
+    param = "*使用回避衣装"
